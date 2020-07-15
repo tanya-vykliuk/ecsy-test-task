@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Hello!</title>
+        <meta charset="utf-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <style>
+            html, body: {
+                margin: 0;
+                padding: 0;
+            }
+        </style>
+
+        <script type="module">
+            import {
+                World,
+                System,
+                Component,
+                TagComponent,
+                Types,
+            } from 'https://ecsy.io/build/ecsy.module.js';
+
+            const NUM_ELEMENTS = 40;
+            const SPEED_MULTIPLIER = 0.2;
+            let SHAPE_SIZE = 30;
+            const SHAPE_HALF_SIZE = SHAPE_SIZE / 2;
+
+            // Initialize canvas
+            let canvas = document.querySelector('canvas');
+            let canvasWidth = (canvas.width = window.innerWidth);
+            let canvasHeight = (canvas.height = window.innerHeight);
+            let ctx = canvas.getContext('2d');
+
+            //----------------------
+            // Components
+            //----------------------
+
+            // Velocity component
+            class Velocity extends Component {}
+
+            Velocity.schema = {
+                x: { type: Types.Number },
+                y: { type: Types.Number },
+            };
+
+            // Position component
+            class Position extends Component {}
+
+            Position.schema = {
+                x: { type: Types.Number },
+                y: { type: Types.Number },
+            };
+
+            // Shape component
+            class Shape extends Component {}
+
+            Shape.schema = {
+                primitive: { type: Types.String, default: 'box' },
+            };
+
+            // Size component
+            class Size extends Component {}
+
+            Size.schema = {
+                primitive: {
+                    type: Types.Number,
+                    default: Math.floor(Math.random() * Math.floor(SHAPE_SIZE)),
+                },
+            };
+
+            // Renderable component
+            class Renderable extends TagComponent {}
+
+            //----------------------
+            // Systems
+            //----------------------
+
+            // MovableSystem
+            class MovableSystem extends System {
+                // This method will get called on every frame by default
+                execute(delta, time) {
+                    // Iterate through all the entities on the query
+                    this.queries.moving.results.forEach((entity) => {
+                        var velocity = entity.getComponent(Velocity);
+                        var position = entity.getMutableComponent(Position);
+                        position.x += velocity.x * delta;
+                        position.y += velocity.y * delta;
+
+                        if (position.x > canvasWidth + SHAPE_HALF_SIZE)
+                            position.x = -SHAPE_HALF_SIZE;
+                        if (position.x < -SHAPE_HALF_SIZE)
+                            position.x = canvasWidth + SHAPE_HALF_SIZE;
+                        if (position.y > canvasHeight + SHAPE_HALF_SIZE)
+                            position.y = -SHAPE_HALF_SIZE;
+                        if (position.y < -SHAPE_HALF_SIZE)
+                            position.y = canvasHeight + SHAPE_HALF_SIZE;
+                    });
+                }
+            }
+
+            // Define a query of entities that have "Velocity" and "Position" components
+            MovableSystem.queries = {
+                moving: {
+                    components: [Velocity, Position],
+                },
+            };
+
+            // RendererSystem
+            class RendererSystem extends System {
+                // This method will get called on every frame by default
+                execute(delta, time) {
+                    ctx.fillStyle = '#d4d4d4';
+                    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+                    // Iterate through all the entities on the query
+                    this.queries.renderables.results.forEach((entity) => {
+                        var shape = entity.getComponent(Shape);
+                        var position = entity.getComponent(Position);
+                        var size = entity.getComponent(Size);
+                        if (shape.primitive === 'box') {
+                            this.drawBox(position, size);
+                        } else {
+                            this.drawCircle(position, size);
+                        }
+                    });
+                }
+
+                drawCircle(position, size) {
+                    ctx.beginPath();
+                    ctx.arc(
+                        position.x,
+                        position.y,
+                        size.primitive / 2,
+                        0,
+                        2 * Math.PI,
+                        false
+                    );
+                    ctx.fillStyle = '#39c495';
+                    ctx.fill();
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = '#0b845b';
+                    ctx.stroke();
+                }
+
+                drawBox(position, size) {
+                    ctx.beginPath();
+                    ctx.rect(
+                        position.x - size.primitive / 2,
+                        position.y - size.primitive / 2,
+                        size.primitive,
+                        size.primitive
+                    );
+                    ctx.fillStyle = '#e2736e';
+                    ctx.fill();
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = '#b74843';
+                    ctx.stroke();
+                }
+            }
+
+            // Define a query of entities that have "Renderable" and "Shape" components
+            RendererSystem.queries = {
+                renderables: { components: [Renderable, Shape] },
+            };
+
+            //Define mouse position
+            var MOUSE_X = 0;
+            var MOUSE_Y = 0;
+            function saveMousePosition(event) {
+                MOUSE_X = event.clientX;
+                MOUSE_Y = event.clientY;
+            }
+
+            // Some helper functions when creating the components
+            function getRandomVelocity() {
+                return {
+                    x: SPEED_MULTIPLIER * (2 * Math.random() - 1),
+                    y: SPEED_MULTIPLIER * (2 * Math.random() - 1),
+                };
+            }
+
+            function getRandomPosition() {
+                return {
+                    x: Math.random() * canvasWidth,
+                    y: Math.random() * canvasHeight,
+                };
+            }
+
+            function getMousePosition() {
+                return {
+                    x: MOUSE_X || 0,
+                    y: MOUSE_Y || 0,
+                };
+            }
+
+            function getRandomShape() {
+                return {
+                    primitive: Math.random() >= 0.5 ? 'circle' : 'box',
+                };
+            }
+
+            function getRandomSize() {
+                return {
+                    primitive: Math.floor(
+                        Math.random() * Math.floor(SHAPE_SIZE)
+                    ),
+                };
+            }
+            // Create world and register the components and systems on it
+            function createNewWorld(index) {
+                console.log('index', index);
+                world[index] = new World();
+                world[index]
+                    .registerComponent(Velocity)
+                    .registerComponent(Position)
+                    .registerComponent(Shape)
+                    .registerComponent(Size)
+                    .registerComponent(Renderable)
+                    .registerSystem(MovableSystem)
+                    .registerSystem(RendererSystem);
+
+                for (let i = 0; i < NUM_ELEMENTS; i++) {
+                    world[index]
+                        .createEntity()
+                        .addComponent(Velocity, getRandomVelocity())
+                        .addComponent(Shape, getRandomShape())
+                        .addComponent(Size, getRandomSize())
+                        .addComponent(Position, getMousePosition())
+                        .addComponent(Renderable);
+                }
+
+                // Run!
+                function run() {
+                    // Compute delta and elapsed time
+                    let time = performance.now();
+                    let delta = time - lastTime;
+
+                    // Run all the systems
+                    world[index].execute(delta, time);
+
+                    lastTime = time;
+                    requestAnimationFrame(run);
+                }
+
+                let lastTime = performance.now();
+                run();
+            }
+
+            var worldsCount = 0;
+            var world = [];
+            canvas.addEventListener(
+                'click',
+                function (event) {
+                    let worldIndex = ++worldsCount;
+                    saveMousePosition(event);
+                    createNewWorld(worldIndex);
+                    setTimeout(() => {
+                        world[worldIndex].stop();
+                        console.log('random second hide');
+                    }, Math.floor(Math.random() * Math.floor(5) * 1000));
+                },
+                false
+            );
+        </script>
+    </head>
+    <body>
+        <canvas width="500" height="500"></canvas>
+    </body>
+</html>
