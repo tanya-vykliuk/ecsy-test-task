@@ -208,20 +208,34 @@
                 };
             }
             // Create world and register the components and systems on it
-            function createNewWorld(index) {
-                console.log('index', index);
-                world[index] = new World();
-                world[index]
-                    .registerComponent(Velocity)
-                    .registerComponent(Position)
-                    .registerComponent(Shape)
-                    .registerComponent(Size)
-                    .registerComponent(Renderable)
-                    .registerSystem(MovableSystem)
-                    .registerSystem(RendererSystem);
+            var world = new World();
+            world
+                .registerComponent(Velocity)
+                .registerComponent(Position)
+                .registerComponent(Shape)
+                .registerComponent(Size)
+                .registerComponent(Renderable)
+                .registerSystem(MovableSystem)
+                .registerSystem(RendererSystem);
 
+            // Run!
+            function run() {
+                // Compute delta and elapsed time
+                var time = performance.now();
+                var delta = time - lastTime;
+
+                // Run all the systems
+                world.execute(delta, time);
+
+                lastTime = time;
+                requestAnimationFrame(run);
+            }
+
+            var lastTime = performance.now();
+            run();
+            function createNewSplash() {
                 for (let i = 0; i < NUM_ELEMENTS; i++) {
-                    world[index]
+                    world
                         .createEntity()
                         .addComponent(Velocity, getRandomVelocity())
                         .addComponent(Shape, getRandomShape())
@@ -229,34 +243,14 @@
                         .addComponent(Position, getMousePosition())
                         .addComponent(Renderable);
                 }
-
-                // Run!
-                function run() {
-                    // Compute delta and elapsed time
-                    let time = performance.now();
-                    let delta = time - lastTime;
-
-                    // Run all the systems
-                    world[index].execute(delta, time);
-
-                    lastTime = time;
-                    requestAnimationFrame(run);
-                }
-
-                let lastTime = performance.now();
-                run();
             }
 
-            var worldsCount = 0;
-            var world = [];
             canvas.addEventListener(
                 'click',
                 function (event) {
-                    let worldIndex = ++worldsCount;
                     saveMousePosition(event);
-                    createNewWorld(worldIndex);
+                    createNewSplash();
                     setTimeout(() => {
-                        world[worldIndex].stop();
                         console.log('random second hide');
                     }, Math.floor(Math.random() * Math.floor(5) * 1000));
                 },
